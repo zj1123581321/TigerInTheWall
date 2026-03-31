@@ -131,4 +131,36 @@
             </com.drake.statelayout.StateLayout>
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>
+
+    <LinearLayout
+        android:id="@+id/batch_action_bar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom"
+        android:background="?attr/colorSurfaceContainer"
+        android:elevation="8dp"
+        android:orientation="horizontal"
+        android:padding="12dp"
+        android:visibility="gone">
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/batch_block_button"
+            style="@style/Widget.Material3.Button"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="8dp"
+            android:layout_weight="1"
+            android:text="@string/batch_block_all"
+            app:icon="@drawable/ic_twotone_block_24" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/batch_unblock_button"
+            style="@style/Widget.Material3.Button.OutlinedButton"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:layout_weight="1"
+            android:text="@string/batch_unblock_all"
+            app:icon="@drawable/ic_twotone_check_circle_24" />
+    </LinearLayout>
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

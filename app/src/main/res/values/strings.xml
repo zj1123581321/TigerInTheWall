@@ -51,6 +51,17 @@
     <string name="manager_clean_detail_advanced">Advanced</string>
     <string name="manage_apply_success">Clean Finished</string>
 
+    <string name="batch_mode_title">%d selected</string>
+    <string name="batch_select_all">Select All</string>
+    <string name="batch_deselect_all">Deselect All</string>
+    <string name="batch_block_all">Block All Intents</string>
+    <string name="batch_unblock_all">Unblock All Intents</string>
+    <string name="batch_block_confirm_title">Batch Block</string>
+    <string name="batch_block_confirm_msg">Block all %1$s intents for %2$d selected apps?</string>
+    <string name="batch_unblock_confirm_title">Batch Unblock</string>
+    <string name="batch_unblock_confirm_msg">Unblock all %1$s intents for %2$d selected apps?</string>
+    <string name="batch_apply_success">Batch operation completed for %d apps</string>
+
 
     <string name="misc_list_title">Other</string>
     <string name="misc_backup_and_restore_title">Backup &amp; Restore</string>

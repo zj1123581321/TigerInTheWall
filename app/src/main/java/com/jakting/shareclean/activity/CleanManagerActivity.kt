@@ -4,8 +4,10 @@ import android.content.Intent
 import android.graphics.drawable.Drawable
 import android.os.Bundle
 import android.view.Menu
+import android.view.MenuItem
 import android.view.View
 import android.view.View.OnAttachStateChangeListener
+import android.widget.CheckBox
 import android.widget.ImageView
 import android.widget.TextView
 import androidx.appcompat.widget.SearchView
@@ -14,6 +16,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.drake.brv.utils.linear
 import com.drake.brv.utils.models
 import com.drake.brv.utils.setup
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.jakting.shareclean.BaseActivity
 import com.jakting.shareclean.R
 import com.jakting.shareclean.data.App
@@ -23,8 +26,12 @@ import com.jakting.shareclean.utils.application.Companion.chipBrowser
 import com.jakting.shareclean.utils.application.Companion.chipShare
 import com.jakting.shareclean.utils.application.Companion.chipText
 import com.jakting.shareclean.utils.application.Companion.chipView
+import com.jakting.shareclean.utils.application.Companion.kv
 import com.jakting.shareclean.utils.application.Companion.settingSharedPreferences
+import com.jakting.shareclean.utils.deleteIfwFiles
 import com.jakting.shareclean.utils.getAppIcon
+import com.jakting.shareclean.utils.toast
+import com.jakting.shareclean.utils.writeIfwFiles
 import kotlinx.coroutines.launch
 import java.util.Locale
 
@@ -36,6 +43,11 @@ class CleanManagerActivity : BaseActivity() {
     private lateinit var searchListener: SearchView.OnQueryTextListener
     lateinit var data: List<App>
 
+    // Batch mode state
+    private var isBatchMode = false
+    private val selectedApps = mutableSetOf<String>() // packageName set
+    private var menu: Menu? = null
+
     override fun onCreate(savedInstanceState: Bundle?) {
         binding = ActivityCleanManagerBinding.inflate(layoutInflater)
         super.onCreate(savedInstanceState)
@@ -45,6 +57,7 @@ class CleanManagerActivity : BaseActivity() {
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
         menuInflater.inflate(R.menu.menu_manager_clean, menu)
+        this.menu = menu
         return true
     }
 
@@ -68,9 +81,33 @@ class CleanManagerActivity : BaseActivity() {
         return super.onPrepareOptionsMenu(menu)
     }
 
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        return when (item.itemId) {
+            R.id.menu_batch_select_all -> {
+                selectAllVisible()
+                true
+            }
+            R.id.menu_batch_deselect_all -> {
+                deselectAll()
+                true
+            }
+            else -> super.onOptionsItemSelected(item)
+        }
+    }
+
     override fun onStart() {
         super.onStart()
         setChip(chipShare, chipView, chipText, chipBrowser)
+    }
+
+    @Deprecated("Deprecated in Java")
+    override fun onBackPressed() {
+        if (isBatchMode) {
+            exitBatchMode()
+        } else {
+            @Suppress("DEPRECATION")
+            super.onBackPressed()
+        }
     }
 
     private fun initView() {
@@ -149,31 +186,50 @@ class CleanManagerActivity : BaseActivity() {
                 findView<TextView>(R.id.app_intent_count_view).text = viewSize.toString()
                 findView<TextView>(R.id.app_intent_count_text).text = textSize.toString()
                 findView<TextView>(R.id.app_intent_count_browser).text = browserSize.toString()
+
+                // Batch mode checkbox
+                val checkbox = findView<CheckBox>(R.id.app_checkbox)
+                checkbox.visibility = if (isBatchMode) View.VISIBLE else View.GONE
+                checkbox.isChecked = selectedApps.contains(getModel<App>().packageName)
             }
             onClick(R.id.app_layout) {
-                val intent = Intent(this@CleanManagerActivity, DetailsActivity::class.java)
-                intent.putExtra("app", getModel<App>())
-                intent.putExtra(
-                    "shareSize",
-                    itemView.findViewById<TextView>(R.id.app_intent_count_share).text.toString()
-                        .toInt()
-                )
-                intent.putExtra(
-                    "viewSize",
-                    itemView.findViewById<TextView>(R.id.app_intent_count_view).text.toString()
-                        .toInt()
-                )
-                intent.putExtra(
-                    "textSize",
-                    itemView.findViewById<TextView>(R.id.app_intent_count_text).text.toString()
-                        .toInt()
-                )
-                intent.putExtra(
-                    "browserSize",
-                    itemView.findViewById<TextView>(R.id.app_intent_count_browser).text.toString()
-                        .toInt()
-                )
-                startActivity(intent)
+                if (isBatchMode) {
+                    toggleSelection(getModel<App>())
+                    val checkbox = findView<CheckBox>(R.id.app_checkbox)
+                    checkbox.isChecked = selectedApps.contains(getModel<App>().packageName)
+                } else {
+                    val intent = Intent(this@CleanManagerActivity, DetailsActivity::class.java)
+                    intent.putExtra("app", getModel<App>())
+                    intent.putExtra(
+                        "shareSize",
+                        itemView.findViewById<TextView>(R.id.app_intent_count_share).text.toString()
+                            .toInt()
+                    )
+                    intent.putExtra(
+                        "viewSize",
+                        itemView.findViewById<TextView>(R.id.app_intent_count_view).text.toString()
+                            .toInt()
+                    )
+                    intent.putExtra(
+                        "textSize",
+                        itemView.findViewById<TextView>(R.id.app_intent_count_text).text.toString()
+                            .toInt()
+                    )
+                    intent.putExtra(
+                        "browserSize",
+                        itemView.findViewById<TextView>(R.id.app_intent_count_browser).text.toString()
+                            .toInt()
+                    )
+                    startActivity(intent)
+                }
+            }
+            onLongClick(R.id.app_layout) {
+                if (!isBatchMode) {
+                    enterBatchMode()
+                    toggleSelection(getModel<App>())
+                    val checkbox = findView<CheckBox>(R.id.app_checkbox)
+                    checkbox.isChecked = true
+                }
             }
         }
 
@@ -211,7 +267,136 @@ class CleanManagerActivity : BaseActivity() {
             binding.managerCleanStateLayout.showLoading()
         }
 
+        // Batch action buttons
+        binding.batchBlockButton.setOnClickListener { showBatchConfirmDialog(true) }
+        binding.batchUnblockButton.setOnClickListener { showBatchConfirmDialog(false) }
+    }
 
+    // --- Batch mode logic ---
+
+    private fun enterBatchMode() {
+        isBatchMode = true
+        selectedApps.clear()
+        updateBatchUI()
+        binding.managerCleanRecyclerView.adapter?.notifyDataSetChanged()
+    }
+
+    private fun exitBatchMode() {
+        isBatchMode = false
+        selectedApps.clear()
+        supportActionBar?.title = getString(R.string.manager_clean_title)
+        updateBatchUI()
+        binding.managerCleanRecyclerView.adapter?.notifyDataSetChanged()
+    }
+
+    private fun toggleSelection(app: App) {
+        if (selectedApps.contains(app.packageName)) {
+            selectedApps.remove(app.packageName)
+        } else {
+            selectedApps.add(app.packageName)
+        }
+        updateBatchTitle()
+    }
+
+    private fun selectAllVisible() {
+        val visibleModels = binding.managerCleanRecyclerView.models as? List<*> ?: return
+        for (item in visibleModels) {
+            if (item is App) {
+                selectedApps.add(item.packageName)
+            }
+        }
+        updateBatchTitle()
+        binding.managerCleanRecyclerView.adapter?.notifyDataSetChanged()
+    }
+
+    private fun deselectAll() {
+        selectedApps.clear()
+        updateBatchTitle()
+        binding.managerCleanRecyclerView.adapter?.notifyDataSetChanged()
+    }
+
+    private fun updateBatchTitle() {
+        if (isBatchMode) {
+            supportActionBar?.title = String.format(
+                getString(R.string.batch_mode_title),
+                selectedApps.size
+            )
+        }
+    }
+
+    private fun updateBatchUI() {
+        // Toggle bottom bar
+        binding.batchActionBar.visibility = if (isBatchMode) View.VISIBLE else View.GONE
+
+        // Toggle menu items
+        menu?.findItem(R.id.menu_manager_clean_search)?.isVisible = !isBatchMode
+        menu?.findItem(R.id.menu_batch_select_all)?.isVisible = isBatchMode
+        menu?.findItem(R.id.menu_batch_deselect_all)?.isVisible = isBatchMode
+
+        updateBatchTitle()
+    }
+
+    private fun getActiveTypeNames(): String {
+        val types = mutableListOf<String>()
+        if (chipShare) types.add(getString(R.string.manager_clean_type_send))
+        if (chipView) types.add(getString(R.string.manager_clean_type_view))
+        if (chipText) types.add(getString(R.string.manager_clean_type_text))
+        if (chipBrowser) types.add(getString(R.string.manager_clean_type_browser))
+        return types.joinToString(", ")
+    }
+
+    private fun getActiveTypeKeys(): List<String> {
+        val types = mutableListOf<String>()
+        if (chipShare) {
+            types.add("1_share")
+            types.add("2_share_multi")
+        }
+        if (chipView) types.add("3_view")
+        if (chipText) types.add("4_text")
+        if (chipBrowser) types.add("5_browser")
+        return types
+    }
+
+    private fun showBatchConfirmDialog(block: Boolean) {
+        if (selectedApps.isEmpty()) return
+
+        val typeNames = getActiveTypeNames()
+        val count = selectedApps.size
+
+        val title = if (block) R.string.batch_block_confirm_title else R.string.batch_unblock_confirm_title
+        val msg = if (block) R.string.batch_block_confirm_msg else R.string.batch_unblock_confirm_msg
+
+        MaterialAlertDialogBuilder(this)
+            .setTitle(title)
+            .setMessage(String.format(getString(msg), typeNames, count))
+            .setPositiveButton(R.string.ok) { _, _ ->
+                applyBatchOperation(block)
+            }
+            .setNegativeButton(R.string.cancel, null)
+            .show()
+    }
+
+    private fun applyBatchOperation(block: Boolean) {
+        val activeTypes = getActiveTypeKeys()
+        val selectedPackages = selectedApps.toSet()
+
+        // Find all matching apps and their intents
+        var affectedCount = 0
+        for (app in data) {
+            if (!selectedPackages.contains(app.packageName)) continue
+            affectedCount++
+            for (intent in app.intentList) {
+                if (activeTypes.contains(intent.type)) {
+                    val keyName = "${intent.type}/${intent.packageName}/${intent.component}"
+                    kv.encode(keyName, block)
+                }
+            }
+        }
+
+        if (deleteIfwFiles("all") && writeIfwFiles()) {
+            toast(String.format(getString(R.string.batch_apply_success), affectedCount))
+        }
+        exitBatchMode()
     }
 
     private fun setChip(vararg args: Boolean) {
