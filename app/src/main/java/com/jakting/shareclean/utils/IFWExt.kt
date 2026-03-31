@@ -2,8 +2,10 @@ package com.jakting.shareclean.utils
 
 import android.content.Context
 import android.content.Intent
+import com.jakting.shareclean.utils.application.Companion.appContext
 import com.jakting.shareclean.utils.application.Companion.kv
 import com.jakting.shareclean.utils.application.Companion.settingSharedPreferences
+import java.io.File
 
 const val ifw_send_file_path = "/data/system/ifw/TigerInTheWall_Intent_send.xml"
 const val ifw_send_multi_file_path = "/data/system/ifw/TigerInTheWall_Intent_send_multi.xml"
@@ -96,18 +98,18 @@ fun Context?.writeIfwFiles(): Boolean {
     }
     var result = true
     intentTypeList.forEach { itType ->
-        if (runShell("touch ${getIFWPath(itType)}").isSuccess &&
-            runShell(
-                "echo '${generateIfwFileContent(intentTypeMap[itType]!!)}' > ${
-                    getIFWPath(
-                        itType
-                    )
-                }"
-            ).isSuccess
-        ) {
-            logd("写入${getIFWPath(itType)}成功")
-        } else {
-            result = false
+        val filePath = getIFWPath(itType)
+        val content = generateIfwFileContent(intentTypeMap[itType]!!)
+        val tempFile = File(appContext.cacheDir, "ifw_temp_${itType}.xml")
+        try {
+            tempFile.writeText(content)
+            if (runShell("cp ${tempFile.absolutePath} $filePath && chmod 644 $filePath").isSuccess) {
+                logd("写入${filePath}成功")
+            } else {
+                result = false
+            }
+        } finally {
+            tempFile.delete()
         }
     }
     return result

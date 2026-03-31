@@ -14,7 +14,15 @@ import com.jakting.shareclean.BaseActivity
 import com.jakting.shareclean.BuildConfig
 import com.jakting.shareclean.R
 import com.jakting.shareclean.databinding.ActivityMainBinding
-import com.jakting.shareclean.utils.*
+import com.jakting.shareclean.utils.getAppIcon
+import com.jakting.shareclean.utils.getColorFromAttr
+import com.jakting.shareclean.utils.moduleInfo
+import com.jakting.shareclean.utils.openLink
+import com.jakting.shareclean.utils.toast
+import com.jakting.shareclean.utils.backupTIW
+import com.jakting.shareclean.utils.restoreTIW
+import com.jakting.shareclean.utils.deleteIfwFiles
+import com.jakting.shareclean.utils.writeIfwFiles
 import com.jakting.shareclean.utils.application.Companion.shell
 import com.mikepenz.aboutlibraries.LibsBuilder
 import kotlinx.coroutines.launch
@@ -125,54 +133,52 @@ class MainActivity : BaseActivity() {
     @SuppressLint("SetTextI18n")
     private fun checkStatus() {
         if (shell.isRoot) {
-            // 已经授予 root
-            if (moduleApplyAvailable()) {
-                // 如果模块已生效
+            // 已经授予 root，通过读取 Magisk 模块目录检测模块状态
+            val injectIf = moduleInfo()
+            if (injectIf[0].isNotEmpty()) {
+                // 模块已安装且能读取到版本信息
                 binding.contentMain.card1Module.cardStatusTitle.text =
                     getString(R.string.status_card_exist)
-                val injectIf = moduleInfo()
-                // 尝试请求 Riru 目录，如果 Riru 可用，则说明 IFW Enchance 是 Riru 版本
-                if (injectIf[0].isNotEmpty()) {
-                    binding.contentMain.card1Module.cardStatusDesc.text =
-                        String.format(
-                            getString(R.string.status_card_exist_module),
-                            injectIf[1],
-                            injectIf[2]
-                        )
-                    binding.contentMain.card1Module.cardStatusInjectWhich.text = injectIf[0]
-                    binding.contentMain.card1Module.cardStatusIcon.setImageResource(R.drawable.ic_twotone_check_circle_24)
-                    binding.contentMain.card1Module.cardStatus.backgroundTintList =
-                        ColorStateList.valueOf(getColorFromAttr(R.attr.colorPrimary))
-                    var clickCount = 0
-                    binding.contentMain.card1Module.cardStatus.setOnClickListener {
-                        clickCount++
-                        when (clickCount) {
-                            5 -> {
-                                binding.contentMain.card1Module.cardStatusInjectWhich.text =
-                                    injectIf[0] + "🤥"
-                            }
-
-                            10 -> {
-                                binding.contentMain.card1Module.cardStatusInjectWhich.text =
-                                    injectIf[0] + "🤕"
-                            }
-
-                            15 -> {
-                                binding.contentMain.card1Module.cardStatusInjectWhich.text =
-                                    injectIf[0] + "🤡"
-                            }
-
-                            20 -> {
-                                binding.contentMain.card1Module.cardStatusInjectWhich.text =
-                                    injectIf[0] + "👻"
-                                toast(getString(R.string.status_card_click))
-                                clickCount = 0
-                            }
+                binding.contentMain.card1Module.cardStatusDesc.text =
+                    String.format(
+                        getString(R.string.status_card_exist_module),
+                        injectIf[1],
+                        injectIf[2]
+                    )
+                binding.contentMain.card1Module.cardStatusInjectWhich.text = injectIf[0]
+                binding.contentMain.card1Module.cardStatusIcon.setImageResource(R.drawable.ic_twotone_check_circle_24)
+                binding.contentMain.card1Module.cardStatus.backgroundTintList =
+                    ColorStateList.valueOf(getColorFromAttr(R.attr.colorPrimary))
+                var clickCount = 0
+                binding.contentMain.card1Module.cardStatus.setOnClickListener {
+                    clickCount++
+                    when (clickCount) {
+                        5 -> {
+                            binding.contentMain.card1Module.cardStatusInjectWhich.text =
+                                injectIf[0] + "🤥"
                         }
-                        it.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+
+                        10 -> {
+                            binding.contentMain.card1Module.cardStatusInjectWhich.text =
+                                injectIf[0] + "🤕"
+                        }
+
+                        15 -> {
+                            binding.contentMain.card1Module.cardStatusInjectWhich.text =
+                                injectIf[0] + "🤡"
+                        }
+
+                        20 -> {
+                            binding.contentMain.card1Module.cardStatusInjectWhich.text =
+                                injectIf[0] + "👻"
+                            toast(getString(R.string.status_card_click))
+                            clickCount = 0
+                        }
                     }
+                    it.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
                 }
             } else {
+                // 模块未安装
                 binding.contentMain.card1Module.cardStatusTitle.text =
                     getString(R.string.status_card_no_module)
                 binding.contentMain.card1Module.cardStatus.setOnClickListener {
@@ -189,7 +195,6 @@ class MainActivity : BaseActivity() {
                     it.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
                 }
             }
-
 
         } else {
             //没有授予 root 的时候，点击卡片会弹窗

@@ -8,6 +8,7 @@ import android.content.pm.PackageInfo
 import android.content.pm.PackageManager
 import android.content.pm.ResolveInfo
 import android.graphics.drawable.Drawable
+import android.os.Build
 import androidx.core.content.ContextCompat
 import com.jakting.shareclean.R
 import com.jakting.shareclean.data.AppDetail
@@ -18,14 +19,18 @@ import kotlinx.coroutines.withContext
 fun getAppDetail(packageName: String): AppDetail {
     //根据包名寻找应用名
     val appDetail = AppDetail()
-    val packageInfo: PackageInfo
     val packageManager: PackageManager = appContext.packageManager
     try {
-        packageInfo = packageManager.getPackageInfo(packageName, 0)
+        val packageInfo = packageManager.getPackageInfo(packageName, 0)
         appDetail.appName = packageInfo.applicationInfo.loadLabel(packageManager).toString()
         appDetail.packageName = packageName
-        appDetail.versionName = packageInfo.versionName
-        appDetail.versionCode = packageInfo.versionCode.toString()
+        appDetail.versionName = packageInfo.versionName ?: ""
+        appDetail.versionCode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            packageInfo.longVersionCode.toString()
+        } else {
+            @Suppress("DEPRECATION")
+            packageInfo.versionCode.toString()
+        }
     } catch (e: PackageManager.NameNotFoundException) {
         e.printStackTrace()
     }
@@ -77,14 +82,10 @@ fun String?.isInstall(): Boolean {
         if (this == null) {
             false
         } else {
-            var pkgInfo: PackageInfo = appContext.packageManager.getPackageInfo(
-                this.trim(),
-                PackageManager.GET_ACTIVITIES
-            )
+            appContext.packageManager.getPackageInfo(this.trim(), 0)
             true
         }
     } catch (e: PackageManager.NameNotFoundException) {
-        e.printStackTrace()
         false
     }
 }
