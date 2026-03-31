@@ -59,6 +59,13 @@
     <string name="batch_unblock_confirm_msg">確定要為 %2$d 個應用程式取消封鎖所有 %1$s 意圖嗎？</string>
     <string name="batch_apply_success">已完成 %d 個應用程式的批次操作</string>
 
+    <string name="status_untouched">未處理</string>
+    <string name="status_partial">部分封鎖</string>
+    <string name="status_fully_blocked">全部封鎖</string>
+    <string name="status_section_untouched">未處理 (%d)</string>
+    <string name="status_section_partial">部分封鎖 (%d)</string>
+    <string name="status_section_fully_blocked">全部封鎖 (%d)</string>
+
 
     <string name="misc_list_title">其它</string>
     <string name="misc_backup_and_restore_title">備份 &amp;amp; 還原</string>

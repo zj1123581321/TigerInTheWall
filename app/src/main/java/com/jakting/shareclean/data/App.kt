@@ -18,13 +18,40 @@ data class IntentType(
     var browser: Boolean
 ) : Serializable
 
+enum class BlockStatus {
+    UNTOUCHED, PARTIALLY_BLOCKED, FULLY_BLOCKED
+}
+
+data class AppBlockSummary(
+    val shareBlocked: Int = 0, val shareTotal: Int = 0,
+    val viewBlocked: Int = 0, val viewTotal: Int = 0,
+    val textBlocked: Int = 0, val textTotal: Int = 0,
+    val browserBlocked: Int = 0, val browserTotal: Int = 0
+) {
+    val totalBlocked get() = shareBlocked + viewBlocked + textBlocked + browserBlocked
+    val totalCount get() = shareTotal + viewTotal + textTotal + browserTotal
+    val status: BlockStatus
+        get() = when {
+            totalCount == 0 -> BlockStatus.UNTOUCHED
+            totalBlocked == totalCount -> BlockStatus.FULLY_BLOCKED
+            totalBlocked > 0 -> BlockStatus.PARTIALLY_BLOCKED
+            else -> BlockStatus.UNTOUCHED
+        }
+}
+
 data class App(
     val appName: String = "",
     val packageName: String = "",
     val intentList: ArrayList<AppIntent> = arrayListOf(),
     val isSystem: Boolean = false,
-    val hasType: IntentType = IntentType(share = false, view = false, text = false, browser = false)
+    val hasType: IntentType = IntentType(share = false, view = false, text = false, browser = false),
+    var blockSummary: AppBlockSummary = AppBlockSummary()
 ) : Serializable
+
+sealed interface ListItem {
+    data class SectionHeader(val title: String, val count: Int) : ListItem
+    data class AppItem(val app: App) : ListItem
+}
 
 data class AppDetail(
     var appName: String = "",
@@ -44,4 +71,3 @@ data class BackupEntity(
     val settings: Map<String, String>,
     val components: MutableList<ComponentItem>
 )
-

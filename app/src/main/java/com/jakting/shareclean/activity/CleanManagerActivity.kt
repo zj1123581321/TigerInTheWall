@@ -1,6 +1,7 @@
 package com.jakting.shareclean.activity
 
 import android.content.Intent
+import android.graphics.Color
 import android.graphics.drawable.Drawable
 import android.os.Bundle
 import android.view.Menu
@@ -12,7 +13,6 @@ import android.widget.ImageView
 import android.widget.TextView
 import androidx.appcompat.widget.SearchView
 import androidx.lifecycle.lifecycleScope
-import androidx.recyclerview.widget.RecyclerView
 import com.drake.brv.utils.linear
 import com.drake.brv.utils.models
 import com.drake.brv.utils.setup
@@ -21,6 +21,8 @@ import com.jakting.shareclean.BaseActivity
 import com.jakting.shareclean.R
 import com.jakting.shareclean.data.App
 import com.jakting.shareclean.data.AppInfo
+import com.jakting.shareclean.data.BlockStatus
+import com.jakting.shareclean.data.ListItem
 import com.jakting.shareclean.databinding.ActivityCleanManagerBinding
 import com.jakting.shareclean.utils.application.Companion.chipBrowser
 import com.jakting.shareclean.utils.application.Companion.chipShare
@@ -30,6 +32,7 @@ import com.jakting.shareclean.utils.application.Companion.kv
 import com.jakting.shareclean.utils.application.Companion.settingSharedPreferences
 import com.jakting.shareclean.utils.deleteIfwFiles
 import com.jakting.shareclean.utils.getAppIcon
+import com.jakting.shareclean.utils.getColorFromAttr
 import com.jakting.shareclean.utils.toast
 import com.jakting.shareclean.utils.writeIfwFiles
 import kotlinx.coroutines.launch
@@ -45,8 +48,16 @@ class CleanManagerActivity : BaseActivity() {
 
     // Batch mode state
     private var isBatchMode = false
-    private val selectedApps = mutableSetOf<String>() // packageName set
+    private val selectedApps = mutableSetOf<String>()
     private var menu: Menu? = null
+
+    // Status filter state
+    private var showUntouched = true
+    private var showPartial = true
+    private var showFullyBlocked = true
+
+    // Current search query
+    private var currentQuery = ""
 
     override fun onCreate(savedInstanceState: Bundle?) {
         binding = ActivityCleanManagerBinding.inflate(layoutInflater)
@@ -118,123 +129,61 @@ class CleanManagerActivity : BaseActivity() {
             }
 
             override fun onQueryTextChange(query: String): Boolean {
-                binding.managerCleanRecyclerView.models =
-                    data.filter {
-                        it.appName.lowercase(Locale.ROOT).contains(query.lowercase(Locale.ROOT))
-                                || it.packageName.lowercase(Locale.ROOT)
-                            .contains(query.lowercase(Locale.ROOT))
-                    }
+                currentQuery = query
+                refreshList()
                 return false
             }
         }
 
         binding.managerCleanRecyclerView.linear().setup {
-            addType<App>(R.layout.item_manager_clean)
+            addType<ListItem.SectionHeader>(R.layout.item_section_header)
+            addType<ListItem.AppItem>(R.layout.item_manager_clean)
             onPayload {
-                // Partial update: only refresh checkbox state without rebinding everything
-                val checkbox = findView<CheckBox>(R.id.app_checkbox)
-                checkbox.visibility = if (isBatchMode) View.VISIBLE else View.GONE
-                checkbox.isChecked = selectedApps.contains(getModel<App>().packageName)
+                if (getModel<Any>() is ListItem.AppItem) {
+                    val app = (getModel<Any>() as ListItem.AppItem).app
+                    val checkbox = findView<CheckBox>(R.id.app_checkbox)
+                    checkbox.visibility = if (isBatchMode) View.VISIBLE else View.GONE
+                    checkbox.isChecked = selectedApps.contains(app.packageName)
+                }
             }
             onBind {
-                findView<TextView>(R.id.app_name).text = getModel<App>().appName
-                findView<TextView>(R.id.app_package_name).text = getModel<App>().packageName
-
-                findView<ImageView>(R.id.app_icon_share).visibility =
-                    if (getModel<App>().hasType.share) View.VISIBLE else View.GONE
-                findView<TextView>(R.id.app_intent_count_share).visibility =
-                    if (getModel<App>().hasType.share) View.VISIBLE else View.GONE
-                findView<ImageView>(R.id.app_icon_view).visibility =
-                    if (getModel<App>().hasType.view) View.VISIBLE else View.GONE
-                findView<TextView>(R.id.app_intent_count_view).visibility =
-                    if (getModel<App>().hasType.view) View.VISIBLE else View.GONE
-                findView<ImageView>(R.id.app_icon_text).visibility =
-                    if (getModel<App>().hasType.text) View.VISIBLE else View.GONE
-                findView<TextView>(R.id.app_intent_count_text).visibility =
-                    if (getModel<App>().hasType.text) View.VISIBLE else View.GONE
-                findView<ImageView>(R.id.app_icon_browser).visibility =
-                    if (getModel<App>().hasType.browser) View.VISIBLE else View.GONE
-                findView<TextView>(R.id.app_intent_count_browser).visibility =
-                    if (getModel<App>().hasType.browser) View.VISIBLE else View.GONE
-
-                val appIcon = findView<ImageView>(R.id.app_icon)
-                val pkg = getModel<App>().packageName
-                val cachedIcon = applicationIconMap[pkg]
-                if (cachedIcon != null) {
-                    appIcon.setImageDrawable(cachedIcon)
-                } else {
-                    appIcon.setImageDrawable(null)
-                    lifecycleScope.launch {
-                        getAppIcon(pkg)?.let {
-                            applicationIconMap[pkg] = it
-                            appIcon.setImageDrawable(it)
-                        }
+                when (val item = getModel<Any>()) {
+                    is ListItem.SectionHeader -> {
+                        findView<TextView>(R.id.section_title).text =
+                            String.format(item.title, item.count)
                     }
+                    is ListItem.AppItem -> bindAppItem(this, item.app)
+                    else -> {}
                 }
-                val shareSize =
-                    getModel<App>().intentList.filter { it.type == "1_share" || it.type == "2_share_multi" }.size
-                val viewSize = getModel<App>().intentList.filter { it.type == "3_view" }.size
-                val textSize = getModel<App>().intentList.filter { it.type == "4_text" }.size
-                val browserSize = getModel<App>().intentList.filter { it.type == "5_browser" }.size
-
-                if (!((shareSize > 0 && chipShare) ||
-                            (viewSize > 0 && chipView) ||
-                            (textSize > 0 && chipText) ||
-                            (browserSize > 0 && chipBrowser))
-                ) {
-                    itemView.layoutParams = RecyclerView.LayoutParams(0, 0)
-                }
-
-                findView<ImageView>(R.id.app_icon_system).visibility =
-                    when (getModel<App>().isSystem) {
-                        true -> View.VISIBLE
-                        else -> View.GONE
-                    }
-                findView<TextView>(R.id.app_intent_count_share).text = shareSize.toString()
-                findView<TextView>(R.id.app_intent_count_view).text = viewSize.toString()
-                findView<TextView>(R.id.app_intent_count_text).text = textSize.toString()
-                findView<TextView>(R.id.app_intent_count_browser).text = browserSize.toString()
-
-                // Batch mode checkbox
-                val checkbox = findView<CheckBox>(R.id.app_checkbox)
-                checkbox.visibility = if (isBatchMode) View.VISIBLE else View.GONE
-                checkbox.isChecked = selectedApps.contains(getModel<App>().packageName)
             }
             onClick(R.id.app_layout) {
+                val item = getModel<Any>()
+                if (item !is ListItem.AppItem) return@onClick
+                val app = item.app
                 if (isBatchMode) {
-                    toggleSelection(getModel<App>())
+                    toggleSelection(app)
                     val checkbox = findView<CheckBox>(R.id.app_checkbox)
-                    checkbox.isChecked = selectedApps.contains(getModel<App>().packageName)
+                    checkbox.isChecked = selectedApps.contains(app.packageName)
                 } else {
+                    val shareSize = app.blockSummary.shareTotal
+                    val viewSize = app.blockSummary.viewTotal
+                    val textSize = app.blockSummary.textTotal
+                    val browserSize = app.blockSummary.browserTotal
                     val intent = Intent(this@CleanManagerActivity, DetailsActivity::class.java)
-                    intent.putExtra("app", getModel<App>())
-                    intent.putExtra(
-                        "shareSize",
-                        itemView.findViewById<TextView>(R.id.app_intent_count_share).text.toString()
-                            .toInt()
-                    )
-                    intent.putExtra(
-                        "viewSize",
-                        itemView.findViewById<TextView>(R.id.app_intent_count_view).text.toString()
-                            .toInt()
-                    )
-                    intent.putExtra(
-                        "textSize",
-                        itemView.findViewById<TextView>(R.id.app_intent_count_text).text.toString()
-                            .toInt()
-                    )
-                    intent.putExtra(
-                        "browserSize",
-                        itemView.findViewById<TextView>(R.id.app_intent_count_browser).text.toString()
-                            .toInt()
-                    )
+                    intent.putExtra("app", app)
+                    intent.putExtra("shareSize", shareSize)
+                    intent.putExtra("viewSize", viewSize)
+                    intent.putExtra("textSize", textSize)
+                    intent.putExtra("browserSize", browserSize)
                     startActivity(intent)
                 }
             }
             onLongClick(R.id.app_layout) {
+                val item = getModel<Any>()
+                if (item !is ListItem.AppItem) return@onLongClick
                 if (!isBatchMode) {
                     enterBatchMode()
-                    toggleSelection(getModel<App>())
+                    toggleSelection(item.app)
                     val checkbox = findView<CheckBox>(R.id.app_checkbox)
                     checkbox.isChecked = true
                 }
@@ -244,6 +193,7 @@ class CleanManagerActivity : BaseActivity() {
         binding.managerCleanStateLayout.onRefresh {
             lifecycleScope.launch {
                 setChip(false)
+                setStatusChip(false)
                 data = if (settingSharedPreferences.getBoolean("pref_system_app", true)) {
                     AppInfo().getAppList()
                         .filter { !it.packageName.startsWith("com.jakting.shareclean") }
@@ -251,33 +201,186 @@ class CleanManagerActivity : BaseActivity() {
                     AppInfo().getAppList()
                         .filter { !it.isSystem && !it.packageName.startsWith("com.jakting.shareclean") }
                 }
-                binding.managerCleanRecyclerView.models = data
+                refreshList()
                 setChip(true)
+                setStatusChip(true)
                 binding.managerCleanStateLayout.showContent()
             }
         }.showLoading()
 
-
+        // Type filter chips — only rebuild list, no full reload
         binding.managerCleanChipShare.setOnCheckedChangeListener { _, isChecked ->
             chipShare = isChecked
-            binding.managerCleanStateLayout.showLoading()
+            refreshList()
         }
         binding.managerCleanChipView.setOnCheckedChangeListener { _, isChecked ->
             chipView = isChecked
-            binding.managerCleanStateLayout.showLoading()
+            refreshList()
         }
         binding.managerCleanChipText.setOnCheckedChangeListener { _, isChecked ->
             chipText = isChecked
-            binding.managerCleanStateLayout.showLoading()
+            refreshList()
         }
         binding.managerCleanChipBrowser.setOnCheckedChangeListener { _, isChecked ->
             chipBrowser = isChecked
-            binding.managerCleanStateLayout.showLoading()
+            refreshList()
+        }
+
+        // Status filter chips
+        binding.statusChipUntouched.setOnCheckedChangeListener { _, isChecked ->
+            showUntouched = isChecked
+            refreshList()
+        }
+        binding.statusChipPartial.setOnCheckedChangeListener { _, isChecked ->
+            showPartial = isChecked
+            refreshList()
+        }
+        binding.statusChipFullyBlocked.setOnCheckedChangeListener { _, isChecked ->
+            showFullyBlocked = isChecked
+            refreshList()
         }
 
         // Batch action buttons
         binding.batchBlockButton.setOnClickListener { showBatchConfirmDialog(true) }
         binding.batchUnblockButton.setOnClickListener { showBatchConfirmDialog(false) }
+    }
+
+    private fun bindAppItem(holder: com.drake.brv.BindingAdapter.BindingViewHolder, app: App) {
+        val summary = app.blockSummary
+
+        holder.findView<TextView>(R.id.app_name).text = app.appName
+        holder.findView<TextView>(R.id.app_package_name).text = app.packageName
+
+        // Status indicator strip
+        val statusIndicator = holder.findView<View>(R.id.status_indicator)
+        when (summary.status) {
+            BlockStatus.FULLY_BLOCKED -> statusIndicator.setBackgroundColor(getColorFromAttr(R.attr.colorTertiary))
+            BlockStatus.PARTIALLY_BLOCKED -> statusIndicator.setBackgroundColor(getColorFromAttr(R.attr.colorPrimary))
+            BlockStatus.UNTOUCHED -> statusIndicator.setBackgroundColor(Color.TRANSPARENT)
+        }
+
+        // App icon
+        val appIcon = holder.findView<ImageView>(R.id.app_icon)
+        val pkg = app.packageName
+        val cachedIcon = applicationIconMap[pkg]
+        if (cachedIcon != null) {
+            appIcon.setImageDrawable(cachedIcon)
+        } else {
+            appIcon.setImageDrawable(null)
+            lifecycleScope.launch {
+                getAppIcon(pkg)?.let {
+                    applicationIconMap[pkg] = it
+                    appIcon.setImageDrawable(it)
+                }
+            }
+        }
+
+        // System icon
+        holder.findView<ImageView>(R.id.app_icon_system).visibility =
+            if (app.isSystem) View.VISIBLE else View.GONE
+
+        // Per-type counts with blocked/total format and color coding
+        bindTypeCount(
+            holder, R.id.app_icon_share, R.id.app_intent_count_share,
+            app.hasType.share, summary.shareBlocked, summary.shareTotal
+        )
+        bindTypeCount(
+            holder, R.id.app_icon_view, R.id.app_intent_count_view,
+            app.hasType.view, summary.viewBlocked, summary.viewTotal
+        )
+        bindTypeCount(
+            holder, R.id.app_icon_text, R.id.app_intent_count_text,
+            app.hasType.text, summary.textBlocked, summary.textTotal
+        )
+        bindTypeCount(
+            holder, R.id.app_icon_browser, R.id.app_intent_count_browser,
+            app.hasType.browser, summary.browserBlocked, summary.browserTotal
+        )
+
+        // Batch mode checkbox
+        val checkbox = holder.findView<CheckBox>(R.id.app_checkbox)
+        checkbox.visibility = if (isBatchMode) View.VISIBLE else View.GONE
+        checkbox.isChecked = selectedApps.contains(app.packageName)
+    }
+
+    private fun bindTypeCount(
+        holder: com.drake.brv.BindingAdapter.BindingViewHolder,
+        iconId: Int, textId: Int,
+        hasType: Boolean, blocked: Int, total: Int
+    ) {
+        val icon = holder.findView<ImageView>(iconId)
+        val text = holder.findView<TextView>(textId)
+        icon.visibility = if (hasType) View.VISIBLE else View.GONE
+        text.visibility = if (hasType) View.VISIBLE else View.GONE
+        if (hasType) {
+            text.text = "$blocked/$total"
+            val color = when {
+                total > 0 && blocked == total -> getColorFromAttr(R.attr.colorTertiary)
+                blocked > 0 -> getColorFromAttr(R.attr.colorPrimary)
+                else -> getColorFromAttr(com.google.android.material.R.attr.colorOnSurfaceVariant)
+            }
+            text.setTextColor(color)
+            icon.setColorFilter(color)
+        }
+    }
+
+    // --- Data filtering & grouping ---
+
+    private fun refreshList() {
+        if (!::data.isInitialized) return
+
+        val query = currentQuery.lowercase(Locale.ROOT)
+
+        // Step 1: filter by type chips (app must have at least one intent matching active types)
+        val typeFiltered = data.filter { app ->
+            val shareSize = app.intentList.count { it.type == "1_share" || it.type == "2_share_multi" }
+            val viewSize = app.intentList.count { it.type == "3_view" }
+            val textSize = app.intentList.count { it.type == "4_text" }
+            val browserSize = app.intentList.count { it.type == "5_browser" }
+            (shareSize > 0 && chipShare) ||
+                    (viewSize > 0 && chipView) ||
+                    (textSize > 0 && chipText) ||
+                    (browserSize > 0 && chipBrowser)
+        }
+
+        // Step 2: filter by search query
+        val searchFiltered = if (query.isEmpty()) typeFiltered else typeFiltered.filter {
+            it.appName.lowercase(Locale.ROOT).contains(query) ||
+                    it.packageName.lowercase(Locale.ROOT).contains(query)
+        }
+
+        // Step 3: filter by status chips
+        val statusFiltered = searchFiltered.filter { app ->
+            when (app.blockSummary.status) {
+                BlockStatus.UNTOUCHED -> showUntouched
+                BlockStatus.PARTIALLY_BLOCKED -> showPartial
+                BlockStatus.FULLY_BLOCKED -> showFullyBlocked
+            }
+        }
+
+        // Step 4: group by status with section headers
+        binding.managerCleanRecyclerView.models = buildGroupedList(statusFiltered)
+    }
+
+    private fun buildGroupedList(apps: List<App>): List<Any> {
+        val untouched = apps.filter { it.blockSummary.status == BlockStatus.UNTOUCHED }
+        val partial = apps.filter { it.blockSummary.status == BlockStatus.PARTIALLY_BLOCKED }
+        val full = apps.filter { it.blockSummary.status == BlockStatus.FULLY_BLOCKED }
+
+        val result = mutableListOf<Any>()
+        if (untouched.isNotEmpty()) {
+            result.add(ListItem.SectionHeader(getString(R.string.status_section_untouched), untouched.size))
+            result.addAll(untouched.map { ListItem.AppItem(it) })
+        }
+        if (partial.isNotEmpty()) {
+            result.add(ListItem.SectionHeader(getString(R.string.status_section_partial), partial.size))
+            result.addAll(partial.map { ListItem.AppItem(it) })
+        }
+        if (full.isNotEmpty()) {
+            result.add(ListItem.SectionHeader(getString(R.string.status_section_fully_blocked), full.size))
+            result.addAll(full.map { ListItem.AppItem(it) })
+        }
+        return result
     }
 
     // --- Batch mode logic ---
@@ -309,8 +412,8 @@ class CleanManagerActivity : BaseActivity() {
     private fun selectAllVisible() {
         val visibleModels = binding.managerCleanRecyclerView.models as? List<*> ?: return
         for (item in visibleModels) {
-            if (item is App) {
-                selectedApps.add(item.packageName)
+            if (item is ListItem.AppItem) {
+                selectedApps.add(item.app.packageName)
             }
         }
         updateBatchTitle()
@@ -341,14 +444,10 @@ class CleanManagerActivity : BaseActivity() {
     }
 
     private fun updateBatchUI() {
-        // Toggle bottom bar
         binding.batchActionBar.visibility = if (isBatchMode) View.VISIBLE else View.GONE
-
-        // Toggle menu items
         menu?.findItem(R.id.menu_manager_clean_search)?.isVisible = !isBatchMode
         menu?.findItem(R.id.menu_batch_select_all)?.isVisible = isBatchMode
         menu?.findItem(R.id.menu_batch_deselect_all)?.isVisible = isBatchMode
-
         updateBatchTitle()
     }
 
@@ -396,7 +495,6 @@ class CleanManagerActivity : BaseActivity() {
         val activeTypes = getActiveTypeKeys()
         val selectedPackages = selectedApps.toSet()
 
-        // Find all matching apps and their intents
         var affectedCount = 0
         for (app in data) {
             if (!selectedPackages.contains(app.packageName)) continue
@@ -413,19 +511,27 @@ class CleanManagerActivity : BaseActivity() {
             toast(String.format(getString(R.string.batch_apply_success), affectedCount))
         }
         exitBatchMode()
+        // Reload to refresh block summaries
+        binding.managerCleanStateLayout.showLoading()
     }
 
     private fun setChip(vararg args: Boolean) {
-        if (args.size == 1) { // 禁用/启用
+        if (args.size == 1) {
             binding.managerCleanChipShare.isEnabled = args[0]
             binding.managerCleanChipView.isEnabled = args[0]
             binding.managerCleanChipText.isEnabled = args[0]
             binding.managerCleanChipBrowser.isEnabled = args[0]
-        } else { // 设置图标状态
+        } else {
             binding.managerCleanChipShare.isChecked = args[0]
             binding.managerCleanChipView.isChecked = args[1]
             binding.managerCleanChipText.isChecked = args[2]
             binding.managerCleanChipBrowser.isChecked = args[3]
         }
+    }
+
+    private fun setStatusChip(enabled: Boolean) {
+        binding.statusChipUntouched.isEnabled = enabled
+        binding.statusChipPartial.isEnabled = enabled
+        binding.statusChipFullyBlocked.isEnabled = enabled
     }
 }

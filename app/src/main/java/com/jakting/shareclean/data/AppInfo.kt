@@ -6,6 +6,8 @@ import android.content.pm.PackageManager
 import android.content.pm.ResolveInfo
 import android.net.Uri
 import com.jakting.shareclean.utils.application.Companion.appContext
+import com.jakting.shareclean.utils.application.Companion.kv
+import com.jakting.shareclean.utils.application.Companion.settingSharedPreferences
 import com.jakting.shareclean.utils.getAppDetail
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -119,6 +121,31 @@ class AppInfo() {
             }
         }
         Collections.sort(finalList, SortName())
+
+        // Compute block summary for each app by reading MMKV
+        val isBlacklist = settingSharedPreferences.getBoolean("pref_blacklist", true)
+        for (app in finalList) {
+            var shareBlocked = 0; var shareTotal = 0
+            var viewBlocked = 0; var viewTotal = 0
+            var textBlocked = 0; var textTotal = 0
+            var browserBlocked = 0; var browserTotal = 0
+            for (intent in app.intentList) {
+                val key = "${intent.type}/${intent.packageName}/${intent.component}"
+                val isChecked = kv.decodeBool(key)
+                val isBlocked = if (isBlacklist) isChecked else !isChecked
+                when (intent.type) {
+                    "1_share", "2_share_multi" -> { shareTotal++; if (isBlocked) shareBlocked++ }
+                    "3_view" -> { viewTotal++; if (isBlocked) viewBlocked++ }
+                    "4_text" -> { textTotal++; if (isBlocked) textBlocked++ }
+                    "5_browser" -> { browserTotal++; if (isBlocked) browserBlocked++ }
+                }
+            }
+            app.blockSummary = AppBlockSummary(
+                shareBlocked, shareTotal, viewBlocked, viewTotal,
+                textBlocked, textTotal, browserBlocked, browserTotal
+            )
+        }
+
         finalList
     }
 

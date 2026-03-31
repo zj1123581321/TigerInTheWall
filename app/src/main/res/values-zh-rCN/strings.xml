@@ -52,6 +52,13 @@
     <string name="batch_unblock_confirm_title">批量取消屏蔽</string>
     <string name="batch_unblock_confirm_msg">确定要为 %2$d 个应用取消屏蔽所有 %1$s 意图吗？</string>
     <string name="batch_apply_success">已完成 %d 个应用的批量操作</string>
+
+    <string name="status_untouched">未处理</string>
+    <string name="status_partial">部分屏蔽</string>
+    <string name="status_fully_blocked">全部屏蔽</string>
+    <string name="status_section_untouched">未处理 (%d)</string>
+    <string name="status_section_partial">部分屏蔽 (%d)</string>
+    <string name="status_section_fully_blocked">全部屏蔽 (%d)</string>
     <string name="manager_search">搜索</string>
     <string name="setting_function">功能</string>
     <string name="setting_system_app">显示系统应用</string>

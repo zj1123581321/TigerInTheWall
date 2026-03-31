@@ -62,6 +62,13 @@
     <string name="batch_unblock_confirm_msg">Unblock all %1$s intents for %2$d selected apps?</string>
     <string name="batch_apply_success">Batch operation completed for %d apps</string>
 
+    <string name="status_untouched">Untouched</string>
+    <string name="status_partial">Partial</string>
+    <string name="status_fully_blocked">Fully blocked</string>
+    <string name="status_section_untouched">Untouched (%d)</string>
+    <string name="status_section_partial">Partially blocked (%d)</string>
+    <string name="status_section_fully_blocked">Fully blocked (%d)</string>
+
 
     <string name="misc_list_title">Other</string>
     <string name="misc_backup_and_restore_title">Backup &amp; Restore</string>

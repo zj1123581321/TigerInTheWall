@@ -115,6 +115,52 @@
                 </com.google.android.material.chip.ChipGroup>
             </HorizontalScrollView>
 
+            <HorizontalScrollView
+                android:id="@+id/manager_clean_status_chip_scroll_view"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:scrollbars="none">
+
+                <com.google.android.material.chip.ChipGroup
+                    android:id="@+id/manager_clean_status_chip_group"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:paddingStart="16dp"
+                    android:paddingEnd="16dp"
+                    app:singleLine="true">
+
+                    <com.google.android.material.chip.Chip
+                        android:id="@+id/status_chip_untouched"
+                        style="@style/Widget.Material3.Chip.Filter"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:checked="true"
+                        android:text="@string/status_untouched"
+                        app:background="@android:color/transparent"
+                        app:chipBackgroundColor="@color/bg_chip_state_list" />
+
+                    <com.google.android.material.chip.Chip
+                        android:id="@+id/status_chip_partial"
+                        style="@style/Widget.Material3.Chip.Filter"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:checked="true"
+                        android:text="@string/status_partial"
+                        app:background="@android:color/transparent"
+                        app:chipBackgroundColor="@color/bg_chip_state_list" />
+
+                    <com.google.android.material.chip.Chip
+                        android:id="@+id/status_chip_fully_blocked"
+                        style="@style/Widget.Material3.Chip.Filter"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:checked="true"
+                        android:text="@string/status_fully_blocked"
+                        app:background="@android:color/transparent"
+                        app:chipBackgroundColor="@color/bg_chip_state_list" />
+                </com.google.android.material.chip.ChipGroup>
+            </HorizontalScrollView>
+
             <com.drake.statelayout.StateLayout
                 android:id="@+id/manager_clean_state_layout"
                 app:loading_layout="@layout/layout_loading"
