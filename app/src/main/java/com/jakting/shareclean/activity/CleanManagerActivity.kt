@@ -130,6 +130,12 @@ class CleanManagerActivity : BaseActivity() {
 
         binding.managerCleanRecyclerView.linear().setup {
             addType<App>(R.layout.item_manager_clean)
+            onPayload {
+                // Partial update: only refresh checkbox state without rebinding everything
+                val checkbox = findView<CheckBox>(R.id.app_checkbox)
+                checkbox.visibility = if (isBatchMode) View.VISIBLE else View.GONE
+                checkbox.isChecked = selectedApps.contains(getModel<App>().packageName)
+            }
             onBind {
                 findView<TextView>(R.id.app_name).text = getModel<App>().appName
                 findView<TextView>(R.id.app_package_name).text = getModel<App>().packageName
@@ -152,15 +158,17 @@ class CleanManagerActivity : BaseActivity() {
                     if (getModel<App>().hasType.browser) View.VISIBLE else View.GONE
 
                 val appIcon = findView<ImageView>(R.id.app_icon)
-                lifecycleScope.launch {
-                    if (applicationIconMap.containsKey(getModel<App>().packageName)) {
-                        appIcon.setImageDrawable(applicationIconMap[getModel<App>().packageName])
-                    } else {
-                        getAppIcon(getModel<App>().packageName)?.let {
+                val pkg = getModel<App>().packageName
+                val cachedIcon = applicationIconMap[pkg]
+                if (cachedIcon != null) {
+                    appIcon.setImageDrawable(cachedIcon)
+                } else {
+                    appIcon.setImageDrawable(null)
+                    lifecycleScope.launch {
+                        getAppIcon(pkg)?.let {
+                            applicationIconMap[pkg] = it
                             appIcon.setImageDrawable(it)
-                            applicationIconMap[getModel<App>().packageName] = it
                         }
-
                     }
                 }
                 val shareSize =
@@ -278,7 +286,7 @@ class CleanManagerActivity : BaseActivity() {
         isBatchMode = true
         selectedApps.clear()
         updateBatchUI()
-        binding.managerCleanRecyclerView.adapter?.notifyDataSetChanged()
+        notifyAllCheckboxChanged()
     }
 
     private fun exitBatchMode() {
@@ -286,7 +294,7 @@ class CleanManagerActivity : BaseActivity() {
         selectedApps.clear()
         supportActionBar?.title = getString(R.string.manager_clean_title)
         updateBatchUI()
-        binding.managerCleanRecyclerView.adapter?.notifyDataSetChanged()
+        notifyAllCheckboxChanged()
     }
 
     private fun toggleSelection(app: App) {
@@ -306,13 +314,21 @@ class CleanManagerActivity : BaseActivity() {
             }
         }
         updateBatchTitle()
-        binding.managerCleanRecyclerView.adapter?.notifyDataSetChanged()
+        notifyAllCheckboxChanged()
     }
 
     private fun deselectAll() {
         selectedApps.clear()
         updateBatchTitle()
-        binding.managerCleanRecyclerView.adapter?.notifyDataSetChanged()
+        notifyAllCheckboxChanged()
+    }
+
+    private fun notifyAllCheckboxChanged() {
+        val adapter = binding.managerCleanRecyclerView.adapter ?: return
+        val count = adapter.itemCount
+        if (count > 0) {
+            adapter.notifyItemRangeChanged(0, count, "checkbox")
+        }
     }
 
     private fun updateBatchTitle() {
