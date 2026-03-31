@@ -46,10 +46,6 @@ android {
     }
 }
 
-kapt {
-    generateStubs = true
-}
-
 dependencies {
 
     implementation 'androidx.core:core-ktx:1.13.1'
