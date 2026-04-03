@@ -27,7 +27,7 @@ data class AppBlockSummary(
     val viewBlocked: Int = 0, val viewTotal: Int = 0,
     val textBlocked: Int = 0, val textTotal: Int = 0,
     val browserBlocked: Int = 0, val browserTotal: Int = 0
-) {
+) : Serializable {
     val totalBlocked get() = shareBlocked + viewBlocked + textBlocked + browserBlocked
     val totalCount get() = shareTotal + viewTotal + textTotal + browserTotal
     val status: BlockStatus
