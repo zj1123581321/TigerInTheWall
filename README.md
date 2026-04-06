@@ -13,6 +13,12 @@ A 🐯Tiger hides in the wall, waiting to 💀bite the "Intent" passby.
 
 TigerInTheWall is an App that allow you to clean up your sheets, just like sharesheet, open mode sheet and more!
 
+# Screenshots
+
+| Main | Clean Manager | App Details | Quick Clean | Settings |
+|:---:|:---:|:---:|:---:|:---:|
+| ![Main](screenshots/main.png) | ![Clean Manager](screenshots/clean_manager.png) | ![App Details](screenshots/details.png) | ![Quick Clean](screenshots/quick_clean.png) | ![Settings](screenshots/settings.png) |
+
 Works with the Magisk modules **IFWEnhance-TIW**, and root permission.
 > IFWEnhance-TIW: [https://github.com/TigerBeanst/Riru-IFWEnhance-TIW/releases](https://github.com/TigerBeanst/Riru-IFWEnhance-TIW/releases)
 > 
