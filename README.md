@@ -24,17 +24,6 @@ Works with the Magisk modules **IFWEnhance-TIW**, and root permission.
 > 
 > If you use Riru, you need to install Riru - Core before. Recommend use Zygisk version.
 
-# Download
-See [https://ic.into.icu/download/](https://ic.into.icu/download/)
-
-or
-
-[Github Release](https://github.com/TigerBeanst/TigerInTheWall/releases/latest)
-
-<a href='https://play.google.com/store/apps/details?id=com.jakting.shareclean&pcampaignid=pcampaignidMKT-Other-global-all-co-prtnr-py-PartBadge-Mar2515-1'><img alt='Get it on Google Play' src='https://play.google.com/intl/zh-TW/badges/static/images/badges/en_badge_web_generic.png' height="60px" width="auto"/></a>
-
-> CI Builds: *DANGER* [https://install.appcenter.ms/users/tigerbeanst/apps/rnshareclean/distribution_groups/tigerinthewall_test_build](https://install.appcenter.ms/users/tigerbeanst/apps/rnshareclean/distribution_groups/tigerinthewall_test_build)
-
 # Guide
 See [https://ic.into.icu/guide/](https://ic.into.icu/guide/)
 
