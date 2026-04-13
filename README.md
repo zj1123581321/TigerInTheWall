@@ -24,9 +24,6 @@ Works with the Magisk modules **IFWEnhance-TIW**, and root permission.
 > 
 > If you use Riru, you need to install Riru - Core before. Recommend use Zygisk version.
 
-# Guide
-See [https://ic.into.icu/guide/](https://ic.into.icu/guide/)
-
 # Tested
 1. Hydrogen/Oxygen OS with Android 10
 2. MIUI 12 with Android 10
