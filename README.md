@@ -8,7 +8,6 @@ A 🐯Tiger hides in the wall, waiting to 💀bite the "Intent" passby.
 👺Magisk needed, named as RnIntentClean before.
 
 [![Platform](https://img.shields.io/badge/platform-android-orange.svg)](https://github.com/TigerBeanst/TigerInTheWall)
-[![Version](https://img.shields.io/github/v/release/TigerBeanst/TigerInTheWall)](https://github.com/TigerBeanst/TigerInTheWall/releases)
 [![License](https://img.shields.io/badge/License-Apache%202.0-red)](https://github.com/TigerBeanst/TigerInTheWall/blob/master/LICENSE)
 
 TigerInTheWall is an App that allow you to clean up your sheets, just like sharesheet, open mode sheet and more!
@@ -20,9 +19,6 @@ TigerInTheWall is an App that allow you to clean up your sheets, just like share
 | ![Main](screenshots/main.png) | ![Clean Manager](screenshots/clean_manager.png) | ![App Details](screenshots/details.png) | ![Quick Clean](screenshots/quick_clean.png) | ![Settings](screenshots/settings.png) |
 
 Works with the Magisk modules **IFWEnhance-TIW**, and root permission.
-> IFWEnhance-TIW: [https://github.com/TigerBeanst/Riru-IFWEnhance-TIW/releases](https://github.com/TigerBeanst/Riru-IFWEnhance-TIW/releases)
-> 
-> If you use Riru, you need to install Riru - Core before. Recommend use Zygisk version.
 
 # Tested
 1. Hydrogen/Oxygen OS with Android 10
